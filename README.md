@@ -96,6 +96,20 @@ the core's passive, hidden bind-sight behavior while allowing dead targets and
 preventing aura persistence. Watching does not add a visible buff/debuff icon to
 the target. The shared spell definition and ordinary `.bindsight` are unchanged.
 
+## Widget integration
+
+The character, chat, map, and unit widgets support `follow=watch` with an observer selected by name or GUID:
+`/widget?source=realm-1&character=Observer&follow=watch`. They follow that observer's direct assignment and
+return to the observer on `.unwatch`, watch disablement, or observer logout. Target logout and camera
+pauses retain the assignment. Existing widget URLs remain fixed to their selected character.
+
+`src/WatchTarget.h` is a header-only, optional integration API. `Watch::GetTarget(player->CustomData)`
+returns the assigned GUID or an empty GUID. Consumers must read it on the world thread and copy values
+before handing them to workers. No manager pointer or linked symbol is exposed. `Watch::SetTarget` is
+owned by this module's lifecycle; consumers should only read. The data is transient and cleared as soon
+as stopping begins, without waiting for the return teleport. Widgets built without the sibling header
+continue to work independently and can gain integration through their normal rebuild after installation.
+
 ## Validation
 
 `mod-watch.cmake` registers `tests/WatchStateTest.cpp` with the existing

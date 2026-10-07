@@ -5,6 +5,7 @@
 
 #include "WatchCamera.h"
 #include "WatchState.h"
+#include "WatchTarget.h"
 #include "AllCommandScript.h"
 #include "CharacterCache.h"
 #include "CharacterPackets.h"
@@ -115,7 +116,11 @@ public:
         _enabled = sConfigMgr->GetOption<bool>("Watch.Enable", true);
         if (!_enabled)
             for (auto& [guid, record] : _records)
+            {
                 record.assignment.Stop();
+                if (auto observer = ObjectAccessor::FindConnectedPlayer(guid))
+                    SetTarget(observer->CustomData, ObjectGuid::Empty);
+            }
     }
 
     bool Start(ChatHandler* handler, Acore::ChatCommands::PlayerIdentifier const& identifier)
@@ -151,6 +156,7 @@ public:
 
             Detach(observer, existing->second);
             existing->second.assignment.ReplaceTarget(targetGuid);
+            SetTarget(observer->CustomData, targetGuid);
             existing->second.notification.clear();
             handler->PSendSysMessage("Watch target changed to {}.", identifier.GetName());
             return true;
@@ -185,6 +191,7 @@ public:
         if (observer->GetMap()->IsDungeon())
             RememberBinding(observer, itr->second, observer->GetMapId(), observer->GetMap()->GetDifficulty(),
                 observer->GetInstanceId());
+        SetTarget(observer->CustomData, targetGuid);
         PublishGuards();
         // The core uses this if a battleground closes while the GM is inside it.
         observer->SetEntryPoint();
@@ -202,6 +209,7 @@ public:
 
     void Stop(Player* observer)
     {
+        SetTarget(observer->CustomData, ObjectGuid::Empty);
         auto itr = _records.find(observer->GetGUID());
         if (itr == _records.end())
         {
@@ -224,6 +232,7 @@ public:
     void BeforeLogout(Player* player)
     {
         // Called on the world thread, before character saving and deletion.
+        SetTarget(player->CustomData, ObjectGuid::Empty);
         for (auto& [guid, record] : _records)
         {
             if (record.assignment.Target() != player->GetGUID())
@@ -664,7 +673,10 @@ private:
         }
 
         if (observer->GetSession()->GetSecurity() < SEC_GAMEMASTER)
+        {
             record.assignment.Stop();
+            SetTarget(observer->CustomData, ObjectGuid::Empty);
+        }
 
         Player* target = ObjectAccessor::FindConnectedPlayer(record.assignment.Target());
         Observation observation;
