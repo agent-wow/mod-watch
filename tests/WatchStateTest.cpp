@@ -5,6 +5,7 @@
 
 #include "WatchCamera.h"
 #include "WatchState.h"
+#include "WatchTarget.h"
 #include "IntegrationTestFixture.h"
 #include "SpellAuras.h"
 #include "SpellInfoTestHelper.h"
@@ -18,6 +19,23 @@ using Watch::BindingAction;
 using Watch::Observation;
 using Watch::State;
 using Assignment = Watch::Assignment<unsigned, std::string>;
+
+TEST(WatchTarget, PublicationIsPerObserverAndClearingIsIdempotent)
+{
+    DataMap first, second;
+    ObjectGuid alice = ObjectGuid::Create<HighGuid::Player>(10);
+    ObjectGuid bob = ObjectGuid::Create<HighGuid::Player>(20);
+    EXPECT_TRUE(Watch::GetTarget(first).IsEmpty());
+    Watch::SetTarget(first, alice);
+    Watch::SetTarget(second, alice);
+    Watch::SetTarget(first, bob);
+    EXPECT_EQ(Watch::GetTarget(first), bob);
+    EXPECT_EQ(Watch::GetTarget(second), alice);
+    Watch::SetTarget(first, ObjectGuid::Empty);
+    Watch::SetTarget(first, ObjectGuid::Empty);
+    EXPECT_TRUE(Watch::GetTarget(first).IsEmpty());
+    EXPECT_EQ(Watch::GetTarget(second), alice);
+}
 
 TEST(WatchAssignment, RetargetPreservesOriginalReturnLocation)
 {
